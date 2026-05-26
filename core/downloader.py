@@ -75,12 +75,20 @@ class MediaDownloader:
         urls: Iterable[str],
         audio_only: bool = False,
         quality: str = "best",
+        output_dir: Path | None = None,
         progress_hook: ProgressHook | None = None,
     ) -> None:
         """Download multiple URLs sequentially."""
+        destination = output_dir or self.config.downloads_dir
+        destination.mkdir(parents=True, exist_ok=True)
         for url in urls:
             self.logger.info("Batch download started: %s", url)
             if audio_only:
-                self.download_audio_mp3(url=url, bitrate=quality if quality.isdigit() else "192", progress_hook=progress_hook)
+                self.download_audio_mp3(
+                    url=url,
+                    bitrate=quality if quality.isdigit() else "192",
+                    output_dir=destination,
+                    progress_hook=progress_hook,
+                )
             else:
-                self.download_video(url=url, quality=quality, progress_hook=progress_hook)
+                self.download_video(url=url, quality=quality, output_dir=destination, progress_hook=progress_hook)

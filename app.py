@@ -20,7 +20,7 @@ from core.downloader import MediaDownloader
 from core.logger import setup_logger
 from core.utils import check_ffmpeg, describe_ffmpeg, validate_url
 from ui.banner import print_banner
-from ui.file_dialog import choose_media_file, choose_output_file, choose_url_file
+from ui.file_dialog import choose_folder, choose_media_file, choose_output_file, choose_url_file
 from ui.menu import (
     ask_audio_quality_choice,
     ask_optional_path,
@@ -58,11 +58,26 @@ def _path_from_input(value: str) -> Path | None:
     return Path(value).expanduser() if value else None
 
 
+def _require_download_folder(output: Path | None, label: str = "Select save folder") -> Path:
+    """Ask for the save folder when a download command has no output path."""
+    if output is not None:
+        output.mkdir(parents=True, exist_ok=True)
+        return output
+
+    console.print(f"[cyan]{label} before downloading.[/cyan]")
+    selected = choose_folder(console, title=label, fallback_prompt="Save folder path")
+    if selected is None:
+        console.print("[yellow]No save folder selected.[/yellow]")
+        raise typer.Exit(code=1)
+    selected.mkdir(parents=True, exist_ok=True)
+    return selected
+
+
 def _run_doctor() -> None:
     """Print project and dependency status."""
     config = get_config()
     setup_logger(config.logs_dir)
-    console.print(f"Downloads: [cyan]{config.downloads_dir}[/cyan]")
+    console.print("Downloads: [cyan]choose a save folder before each download[/cyan]")
     console.print(f"Outputs:   [cyan]{config.outputs_dir}[/cyan]")
     console.print(f"Logs:      [cyan]{config.logs_dir}[/cyan]")
     console.print(f"FFmpeg:    {describe_ffmpeg()}")
@@ -71,7 +86,6 @@ def _run_doctor() -> None:
 def _interactive_menu() -> None:
     """Run the beginner-friendly interactive CMD menu."""
     config = get_config()
-    default_download_label = f"Enter = default downloads folder: {config.downloads_dir}"
 
     while True:
         choice = show_main_menu(console)
@@ -84,7 +98,7 @@ def _interactive_menu() -> None:
             if choice == "1":
                 url = ask_url("YouTube video URL")
                 quality = ask_video_quality_choice(console)
-                output = _path_from_input(ask_optional_path("Output folder", default_download_label))
+                output = _require_download_folder(None, "Select folder to save the video")
                 thumbnail = ask_yes_no("Download thumbnail too?", default=False)
                 subtitles = ask_yes_no("Download subtitles too?", default=False)
                 download(url=url, quality=quality, output=output, thumbnail=thumbnail, subtitles=subtitles)
@@ -92,14 +106,14 @@ def _interactive_menu() -> None:
             elif choice == "2":
                 url = ask_url("YouTube video URL")
                 bitrate = ask_audio_quality_choice(console)
-                output = _path_from_input(ask_optional_path("Output folder", default_download_label))
+                output = _require_download_folder(None, "Select folder to save the MP3")
                 mp3(url=url, quality=bitrate, output=output)
 
             elif choice == "3":
                 url = ask_url("YouTube playlist URL")
                 audio_only = ask_yes_no("Download playlist as MP3?", default=False)
                 quality = ask_audio_quality_choice(console) if audio_only else ask_video_quality_choice(console)
-                output = _path_from_input(ask_optional_path("Output folder", default_download_label))
+                output = _require_download_folder(None, "Select folder to save the playlist")
                 playlist(url=url, quality=quality, audio_only=audio_only, output=output)
 
             elif choice == "4":
@@ -110,7 +124,8 @@ def _interactive_menu() -> None:
                     continue
                 audio_only = ask_yes_no("Download all as MP3?", default=False)
                 quality = ask_audio_quality_choice(console) if audio_only else ask_video_quality_choice(console)
-                batch(file=file_path, audio_only=audio_only, quality=quality)
+                output = _require_download_folder(None, "Select folder to save batch downloads")
+                batch(file=file_path, audio_only=audio_only, quality=quality, output=output)
 
             elif choice == "5":
                 console.print("[cyan]Select your input media file from the file window.[/cyan]")
@@ -166,6 +181,7 @@ def download(
         raise typer.Exit(code=1)
 
     try:
+        output = _require_download_folder(output, "Select folder to save the video")
         downloader, _ = _startup()
         if not check_ffmpeg():
             console.print(
@@ -202,6 +218,7 @@ def mp3(
         raise typer.Exit(code=1)
 
     try:
+        output = _require_download_folder(output, "Select folder to save the MP3")
         downloader, _ = _startup()
         with DownloadProgress(console) as progress:
             downloader.download_audio_mp3(url=url, bitrate=quality, output_dir=output, progress_hook=progress.hook)
@@ -223,6 +240,7 @@ def playlist(
         raise typer.Exit(code=1)
 
     try:
+        output = _require_download_folder(output, "Select folder to save the playlist")
         downloader, _ = _startup()
         if not audio_only and not check_ffmpeg():
             console.print(
@@ -247,8 +265,10 @@ def batch(
     file: Path = typer.Argument(..., exists=True, readable=True, help="Text file containing one URL per line."),
     audio_only: bool = typer.Option(False, "--audio", help="Download all URLs as MP3."),
     quality: str = typer.Option("best", "--quality", "-q", help="Video quality or audio bitrate."),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Custom download folder."),
 ) -> None:
     """Download a batch of URLs from a text file."""
+    output = _require_download_folder(output, "Select folder to save batch downloads")
     downloader, _ = _startup()
     urls = [line.strip() for line in file.read_text(encoding="utf-8").splitlines() if line.strip()]
     if not urls:
@@ -266,7 +286,7 @@ def batch(
                 "higher quality merging needs FFmpeg.[/yellow]"
             )
         with DownloadProgress(console) as progress:
-            downloader.download_batch(urls=urls, audio_only=audio_only, quality=quality, progress_hook=progress.hook)
+            downloader.download_batch(urls=urls, audio_only=audio_only, quality=quality, output_dir=output, progress_hook=progress.hook)
     except Exception as exc:
         _exit_with_error(exc)
     console.print("[bold green]Batch download complete.[/bold green]")

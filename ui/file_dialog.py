@@ -69,6 +69,17 @@ def choose_output_file(console: Console, initial_dir: Path, default_extension: s
     return None
 
 
+def choose_folder(console: Console, title: str, fallback_prompt: str = "Folder path") -> Path | None:
+    """Open a folder picker and fall back to terminal input."""
+    selected = _ask_folder(title=title, initial_dir=_default_start_location(Path.home()))
+    if selected:
+        return selected
+
+    console.print("[yellow]Folder picker was closed or unavailable.[/yellow]")
+    fallback = ask_optional_path(fallback_prompt, "required")
+    return Path(fallback).expanduser() if fallback else None
+
+
 def _ask_open_file(
     title: str,
     initial_dir: str,
@@ -124,6 +135,28 @@ def _ask_save_file(title: str, initial_dir: str, default_extension: str) -> Path
     return Path(filename) if filename else None
 
 
+def _ask_folder(title: str, initial_dir: str) -> Path | None:
+    if platform.system() == "Windows":
+        selected = _ask_folder_windows(title, initial_dir)
+        if selected:
+            return selected
+
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.update()
+        root.attributes("-topmost", True)
+        folder = filedialog.askdirectory(title=title, initialdir=initial_dir, mustexist=True)
+        root.destroy()
+    except Exception:
+        return None
+
+    return Path(folder) if folder else None
+
+
 def _default_start_location(initial_dir: Path) -> str:
     """Return the best native start location for the current OS."""
     if platform.system() == "Windows":
@@ -167,6 +200,29 @@ $result = $dialog.ShowDialog()
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     Write-Output $dialog.FileName
+}}
+"""
+    return _run_powershell_dialog(script)
+
+
+def _ask_folder_windows(title: str, initial_dir: str) -> Path | None:
+    script = f"""
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = {title!r}
+$dialog.InitialDirectory = {initial_dir!r}
+$dialog.CheckFileExists = $false
+$dialog.CheckPathExists = $true
+$dialog.ValidateNames = $false
+$dialog.Multiselect = $false
+$dialog.RestoreDirectory = $true
+$dialog.FileName = "Select this folder"
+$dialog.Filter = "Folders|*.folder"
+$result = $dialog.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
+    $path = [System.IO.Path]::GetDirectoryName($dialog.FileName)
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Write-Output $path
 }}
 """
     return _run_powershell_dialog(script)
