@@ -58,6 +58,19 @@ def _path_from_input(value: str) -> Path | None:
     return Path(value).expanduser() if value else None
 
 
+def _ask_required_url(label: str) -> str | None:
+    """Ask for a URL, with a clear retry/back choice when it is empty or invalid."""
+    while True:
+        url = ask_url(label)
+        if validate_url(url):
+            return url
+
+        message = "Video link is required." if not url else "Invalid URL."
+        console.print(f"[bold red]{message}[/bold red]")
+        if not ask_yes_no("Enter link again? No = back to menu", default=True):
+            return None
+
+
 def _require_download_folder(output: Path | None, label: str = "Select save folder") -> Path:
     """Ask for the save folder when a download command has no output path."""
     if output is not None:
@@ -96,7 +109,10 @@ def _interactive_menu() -> None:
 
         try:
             if choice == "1":
-                url = ask_url("YouTube video URL")
+                url = _ask_required_url("YouTube video URL")
+                if url is None:
+                    console.print("[yellow]Returned to menu.[/yellow]")
+                    continue
                 quality = ask_video_quality_choice(console)
                 output = _require_download_folder(None, "Select folder to save the video")
                 thumbnail = ask_yes_no("Download thumbnail too?", default=False)
@@ -104,13 +120,19 @@ def _interactive_menu() -> None:
                 download(url=url, quality=quality, output=output, thumbnail=thumbnail, subtitles=subtitles)
 
             elif choice == "2":
-                url = ask_url("YouTube video URL")
+                url = _ask_required_url("YouTube video URL")
+                if url is None:
+                    console.print("[yellow]Returned to menu.[/yellow]")
+                    continue
                 bitrate = ask_audio_quality_choice(console)
                 output = _require_download_folder(None, "Select folder to save the MP3")
                 mp3(url=url, quality=bitrate, output=output)
 
             elif choice == "3":
-                url = ask_url("YouTube playlist URL")
+                url = _ask_required_url("YouTube playlist URL")
+                if url is None:
+                    console.print("[yellow]Returned to menu.[/yellow]")
+                    continue
                 audio_only = ask_yes_no("Download playlist as MP3?", default=False)
                 quality = ask_audio_quality_choice(console) if audio_only else ask_video_quality_choice(console)
                 output = _require_download_folder(None, "Select folder to save the playlist")
