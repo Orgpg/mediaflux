@@ -1,0 +1,5 @@
+yt-dlp>=2025.12.8
+rich>=13.9.4
+typer>=0.15.1
+ffmpeg-python>=0.2.0
+python-dotenv>=1.0.1
