@@ -27,8 +27,7 @@ jobs:
 
       - name: Build exe with PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile --add-data "config;config" --add-data "assets;assets" --add-data "platforms;platforms" --add-binary "tools\\ffmpeg\\bin;ffmpeg" app.py
-          Rename-Item -Path dist\app.exe -NewName mediaflux-windows-x86_64.exe
+          pyinstaller --noconfirm --onefile --name mediaflux-windows-x86_64 --version-file version_info.txt --add-data "config;config" --add-data "assets;assets" --add-data "platforms;platforms" --add-binary "tools\\ffmpeg\\bin;ffmpeg" app.py
 
       - name: Upload exe to release
         uses: softprops/action-gh-release@v2

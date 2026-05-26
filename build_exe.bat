@@ -11,7 +11,7 @@ echo Installing/Upgrading PyInstaller...
 pip install --upgrade pyinstaller
 
 echo Running PyInstaller (this may take a few minutes)...
-pyinstaller --noconfirm --onefile --add-data "config;config" --add-data "assets;assets" --add-data "platforms;platforms" --add-binary "tools\ffmpeg\bin;ffmpeg" app.py
+pyinstaller --noconfirm --onefile --name mediaflux-windows-x86_64 --version-file version_info.txt --add-data "config;config" --add-data "assets;assets" --add-data "platforms;platforms" --add-binary "tools\ffmpeg\bin;ffmpeg" app.py
 
 echo.
 echo Build finished. See the "dist" folder for the generated executable.

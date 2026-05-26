@@ -6,6 +6,7 @@ Run with:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,7 @@ from core.config import get_config
 from core.converter import MediaConverter
 from core.downloader import MediaDownloader
 from core.logger import setup_logger
+from core.updater import can_auto_update, check_for_update, install_windows_update
 from core.utils import check_ffmpeg, describe_ffmpeg, validate_url
 from ui.banner import print_banner
 from ui.file_dialog import choose_folder, choose_media_file, choose_output_file, choose_url_file
@@ -38,6 +40,17 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 console = Console()
+
+
+def _enable_unicode_output() -> None:
+    """Prefer UTF-8 terminal output so non-English titles render correctly."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except Exception:
+                pass
 
 
 def _startup() -> tuple[MediaDownloader, MediaConverter]:
@@ -94,6 +107,35 @@ def _run_doctor() -> None:
     console.print(f"Outputs:   [cyan]{config.outputs_dir}[/cyan]")
     console.print(f"Logs:      [cyan]{config.logs_dir}[/cyan]")
     console.print(f"FFmpeg:    {describe_ffmpeg()}")
+
+
+def _check_for_updates() -> bool:
+    """Check GitHub releases and optionally install the latest Windows EXE."""
+    console.print("[cyan]Checking for updates...[/cyan]")
+    info = check_for_update()
+
+    if not info.is_update_available:
+        console.print(f"[bold green]MediaFlux is up to date.[/bold green] Current version: {info.current_version}")
+        return False
+
+    console.print(f"[yellow]New version available:[/yellow] {info.current_version} -> {info.latest_version}")
+    if info.asset is None:
+        console.print(f"[yellow]No matching release asset found for this OS.[/yellow] {info.release_url}")
+        return False
+
+    console.print(f"Release asset: [cyan]{info.asset.name}[/cyan]")
+    if not can_auto_update():
+        console.print("[yellow]Auto update is only available in the Windows EXE build.[/yellow]")
+        console.print(f"Download manually: [cyan]{info.release_url}[/cyan]")
+        return False
+
+    if not ask_yes_no("Download and install update now?", default=True):
+        return False
+
+    console.print("[cyan]Downloading update. MediaFlux will restart when the update is installed.[/cyan]")
+    install_windows_update(info.asset)
+    console.print("[yellow]Updater started. Closing MediaFlux now...[/yellow]")
+    return True
 
 
 def _interactive_menu() -> None:
@@ -163,6 +205,10 @@ def _interactive_menu() -> None:
 
             elif choice == "6":
                 _run_doctor()
+
+            elif choice == "7":
+                if _check_for_updates():
+                    return
         except typer.Exit:
             console.print("[yellow]Returned to menu.[/yellow]")
         except Exception as exc:
@@ -340,4 +386,5 @@ def doctor() -> None:
 
 
 if __name__ == "__main__":
+    _enable_unicode_output()
     app()

@@ -72,7 +72,8 @@ class YouTubeDownloader:
                         "key": "FFmpegExtractAudio",
                         "preferredcodec": "mp3",
                         "preferredquality": bitrate,
-                    }
+                    },
+                    {"key": "FFmpegMetadata"},
                 ],
             }
         )
@@ -84,8 +85,9 @@ class YouTubeDownloader:
         return {
             "outtmpl": output_template,
             "progress_hooks": hooks,
-            "restrictfilenames": True,
+            "restrictfilenames": False,
             "windowsfilenames": True,
+            "addmetadata": True,
             "ignoreerrors": False,
             "quiet": True,
             "no_warnings": True,

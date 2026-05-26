@@ -42,10 +42,11 @@ def show_main_menu(console: Console) -> str:
     table.add_row("4", "Batch download from URL text file")
     table.add_row("5", "Convert local media file")
     table.add_row("6", "System doctor")
+    table.add_row("7", "Check for update")
     table.add_row("0", "Exit")
 
     console.print(Panel(table, title="[bold bright_green]MediaFlux CMD Menu[/bold bright_green]", border_style="bright_cyan"))
-    return Prompt.ask("[bold cyan]Select function[/bold cyan]", choices=["1", "2", "3", "4", "5", "6", "0"], default="1")
+    return Prompt.ask("[bold cyan]Select function[/bold cyan]", choices=["1", "2", "3", "4", "5", "6", "7", "0"], default="1")
 
 
 def ask_url(label: str = "URL") -> str:
