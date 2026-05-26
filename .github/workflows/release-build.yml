@@ -3,6 +3,10 @@ name: Build and Upload Release Assets
 on:
   release:
     types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -24,14 +28,15 @@ jobs:
       - name: Build exe with PyInstaller
         run: |
           pyinstaller --noconfirm --onefile --add-data "config;config" --add-data "assets;assets" --add-data "platforms;platforms" --add-binary "tools\\ffmpeg\\bin;ffmpeg" app.py
+          Rename-Item -Path dist\app.exe -NewName mediaflux-windows-x86_64.exe
 
       - name: Upload exe to release
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: dist/app.exe
-          asset_name: mediaflux-windows-x86_64.exe
-          asset_content_type: application/octet-stream
+          files: dist/mediaflux-windows-x86_64.exe
+          fail_on_unmatched_files: true
+          name: ${{ github.event.release.name }}
+          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
 
   build-linux:
     name: Build Linux binary (optional)
@@ -60,9 +65,9 @@ jobs:
           tar -czf release/mediaflux-linux.tar.gz -C release mediaflux-linux
 
       - name: Upload linux asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: release/mediaflux-linux.tar.gz
-          asset_name: mediaflux-linux.tar.gz
-          asset_content_type: application/gzip
+          files: release/mediaflux-linux.tar.gz
+          fail_on_unmatched_files: true
+          name: ${{ github.event.release.name }}
+          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
