@@ -59,7 +59,7 @@ def choose_output_file(console: Console, initial_dir: Path, default_extension: s
     """Open a save dialog for converted output files."""
     selected = _ask_save_file(
         title="Save converted file as",
-        initial_dir=_default_start_location(initial_dir),
+        initial_dir=_default_output_location(initial_dir),
         default_extension=default_extension,
     )
     if selected:
@@ -71,7 +71,7 @@ def choose_output_file(console: Console, initial_dir: Path, default_extension: s
 
 def choose_folder(console: Console, title: str, fallback_prompt: str = "Folder path") -> Path | None:
     """Open a folder picker and fall back to terminal input."""
-    selected = _ask_folder(title=title, initial_dir=_default_start_location(Path.home()))
+    selected = _ask_folder(title=title, initial_dir=_default_output_location(Path.home()))
     if selected:
         return selected
 
@@ -163,6 +163,16 @@ def _default_start_location(initial_dir: Path) -> str:
         return WINDOWS_THIS_PC
     if initial_dir.exists():
         return str(initial_dir)
+    return str(Path.home())
+
+
+def _default_output_location(fallback_dir: Path) -> str:
+    """Return the default save location for output files and download folders."""
+    downloads_dir = Path.home() / "Downloads"
+    if downloads_dir.exists():
+        return str(downloads_dir)
+    if fallback_dir.exists():
+        return str(fallback_dir)
     return str(Path.home())
 
 
